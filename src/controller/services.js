@@ -9,6 +9,11 @@ const Services = {
         let url = page === 1 ? `${baseUrl}/ongoing-anime/` : `${baseUrl}/ongoing-anime/page/${page}/`
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 const element = $(".rapi")
@@ -39,25 +44,32 @@ const Services = {
                     currentPage: page
                 })
             }
-            return res.send({
-                message: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 ongoing: [],
             });
         } catch (error) {
             console.log(error);
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 ongoing: [],
             });
         }
     },
+    
     getCompleted: async (req, res) => {
         const page = req.params.page
         let url = page === 1 ? `${baseUrl}/complete-anime/` : `${baseUrl}/complete-anime/page/${page}/`
     
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 const element = $(".rapi")
@@ -89,24 +101,31 @@ const Services = {
                     currentPage: page
                 })
             }
-            return res.send({
-                status: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 completed: []
             })
         } catch (error) {
             console.log(error)
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 completed: [],
             });
         }
     },
+    
     getSearch: async (req, res) => {
         const query = req.params.q
         let url = `${baseUrl}/?s=${query}&post_type=anime`
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 const element = $(".page")
@@ -137,23 +156,30 @@ const Services = {
                     query
                 })
             }
-            return res.send({
-                message: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 search: [],
             });
         } catch (error) {
             console.log(error);
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 search: [],
             });
         }
     },
+    
     getAnimeList: async (req, res) => {
         let url = `${baseUrl}/anime-list/`
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 const element = $("#abtext")
@@ -179,25 +205,32 @@ const Services = {
                     anime_list: datas
                 })
             }
-            return res.send({
-                message: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 anime_list: [],
             });
         } catch (error) {
             console.log(error);
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 anime_list: [],
             });
         }
     },
+    
     getAnimeDetail: async (req, res) => {
         const endpoint = req.params.endpoint
         let url = `${baseUrl}/anime/${endpoint}/`
-    
+
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 const infoElement = $(".fotoanime")
@@ -205,36 +238,36 @@ const Services = {
                 let anime_detail = {}
                 let episode_list = []
                 let thumb, sinopsis = [], detail = [], episode_title, episode_endpoint, episode_date, title
-    
+
                 infoElement.each((index, el) => {
                     thumb = $(el).find("img").attr("src")
                     $(el).find(".sinopc > p").each((index, el) => {
                         sinopsis.push($(el).text())
                     })
-                    $(el).find(".infozingle >  p").each((index, el) => {
+                    $(el).find(".infozingle > p").each((index, el) => {
                         detail.push($(el).text())
                     })
-    
+
                     anime_detail.thumb = thumb
                     anime_detail.sinopsis = sinopsis
                     anime_detail.detail = detail
                 })
-    
+
                 title = $(".jdlrx > h1").text()
                 anime_detail.title = title
-    
+
                 episodeElement.find("li").each((index, el) => {
                     episode_title = $(el).find("span > a").text()
                     episode_endpoint = $(el).find("span > a").attr("href").replace(`${baseUrl}/episode/`, "").replace(`${baseUrl}/batch/`, "").replace(`${baseUrl}/lengkap/`, "").replace("/", "")
                     episode_date = $(el).find(".zeebr").text()
-    
+
                     episode_list.push({
                         episode_title,
                         episode_endpoint,
                         episode_date
                     })
                 })
-    
+
                 return res.status(200).json({
                     status: true,
                     message: "success",
@@ -243,21 +276,25 @@ const Services = {
                     endpoint
                 })
             }
-            res.send({
-                message: response.status,
-                anime_detail: [],
+            
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
+                anime_detail: {},
                 episode_list: []
             });
+            
         } catch (error) {
             console.log(error);
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
-                anime_detail: [],
+                message: error.message || "Internal server error",
+                anime_detail: {},
                 episode_list: []
             });
         }
     },
+    
     getEmbedByContent: async(req, res) => {
         try {
             let nonce = await episodeHelper.getNonce();
@@ -269,18 +306,27 @@ const Services = {
             const obj = {};
             obj.streaming_url = link
 
-            res.send(obj);
+            return res.status(200).json(obj);
         } catch (err) {
             console.log(err);
-            res.send(err)
+            return res.status(500).json({
+                status: false,
+                message: err.message || "Internal server error"
+            })
         }
     },
+    
     getAnimeEpisode: async (req, res) => {
         const endpoint = req.params.endpoint;
         const url = `${baseUrl}/episode/${endpoint}`;
 
         try {
             const response = await services.fetchService(url, res);
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             const $ = cheerio.load(response.data);
             const streamElement = $("#lightsVideo").find("#embed_holder");
             const obj = {};
@@ -365,17 +411,27 @@ const Services = {
                 high_quality = episodeHelper.epsQualityFunction(2, response.data);
             }
             obj.quality = { low_quality, medium_quality, high_quality };
-            res.send(obj);
+            return res.status(200).json(obj);
         } catch (err) {
             console.log(err);
+            return res.status(500).json({
+                status: false,
+                message: err.message || "Internal server error"
+            });
         }
     },
+    
     getBatchLink: async (req, res) => {
         const endpoint = req.params.endpoint;
         const fullUrl = `${baseUrl}/batch/${endpoint}`;
         console.log(fullUrl);
         try {
             const response = await services.fetchService(fullUrl, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             const $ = cheerio.load(response.data);
             const batch = {};
             batch.title = $(".batchlink > h4").text();
@@ -385,19 +441,29 @@ const Services = {
             let medium_quality = episodeHelper.batchQualityFunction(1, response.data);
             let high_quality = episodeHelper.batchQualityFunction(2, response.data);
             batch.download_list = { low_quality, medium_quality, high_quality };
-            res.send({
+            return res.status(200).json({
                 status: true,
-                message: "succes",
+                message: "success",
                 batch
             });
         } catch (error) {
             console.log(error)
+            return res.status(500).json({
+                status: false,
+                message: error.message || "Internal server error"
+            });
         }
     },
+    
     getGenreList: async (req, res) => {
         const url = `${baseUrl}/genre-list/`
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
+            
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
                 let genres = [], genre, endpoint
@@ -416,19 +482,21 @@ const Services = {
                     genres
                 })
             }
-            res.send({
-                message: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 genres: []
             })
         } catch (error) {
             console.log(error);
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 genres: []
             });
         }
     },
+    
     getGenrePage: async (req, res) => {
         const genre = req.params.genre
         const page = req.params.page
@@ -436,6 +504,10 @@ const Services = {
         
         try {
             const response = await services.fetchService(url, res)
+            
+            if (!response || !response.data) {
+                return;
+            }
     
             if (response.status === 200) {
                 const $ = cheerio.load(response.data)
@@ -468,15 +540,16 @@ const Services = {
                     genreAnime
                 })
             }
-            return res.send({
-                message: response.status,
+            return res.status(500).json({
+                status: false,
+                message: "Failed to fetch data",
                 genreAnime: []
             })
         } catch (error) {
             console.log(error)
-            res.send({
+            return res.status(500).json({
                 status: false,
-                message: error,
+                message: error.message || "Internal server error",
                 genreAnime: []
             })
         }

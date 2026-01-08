@@ -1,0 +1,80 @@
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+puppeteer.use(StealthPlugin());
+
+const PuppeteerService = {
+  fetchWithBrowser: async (url) => {
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process'
+        ],
+        timeout: 60000 // 60 detik untuk launch
+      });
+
+      const page = await browser.newPage();
+      
+      // Set user agent
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      
+      // Set viewport
+      await page.setViewport({ width: 1920, height: 1080 });
+      
+      // Set extra headers
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      });
+
+      console.log(`🌐 Fetching with Puppeteer: ${url}`);
+      
+      // Navigate dengan timeout lebih lama dan strategi berbeda
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded', // Ganti dari networkidle2 ke domcontentloaded (lebih cepat)
+        timeout: 60000 // 60 detik
+      });
+
+      // Tunggu selector penting muncul
+      try {
+        await page.waitForSelector('.jdlrx h1', { timeout: 10000 });
+      } catch (e) {
+        console.log('⚠️ Title selector not found, but continuing...');
+      }
+
+      // Get HTML content
+      const html = await page.content();
+      
+      await browser.close();
+      
+      console.log('✅ Success fetching with Puppeteer');
+      
+      return {
+        status: 200,
+        data: html
+      };
+
+    } catch (error) {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (e) {
+          console.error('Error closing browser:', e.message);
+        }
+      }
+      console.error('❌ Puppeteer error:', error.message);
+      throw error;
+    }
+  }
+};
+
+module.exports = PuppeteerService;
