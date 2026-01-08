@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "postinstall": "node node_modules/puppeteer/install.js || echo 'Puppeteer install skipped'"
+    "dev": "nodemon index.js"
   },
   "keywords": [
     "nodejs"
@@ -21,7 +20,7 @@
     "express": "^4.17.1",
     "node-fetch": "^2.7.0",
     "nodemon": "^2.0.20",
-    "puppeteer": "^21.6.1",
+    "puppeteer": "^19.11.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "qs": "^6.11.0"

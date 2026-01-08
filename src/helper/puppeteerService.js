@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { execSync } = require('child_process');
 
 puppeteer.use(StealthPlugin());
 
@@ -9,8 +10,19 @@ const PuppeteerService = {
     try {
       console.log('🚀 Launching Puppeteer...');
       
+      // Detect Chromium path di Railway (Nix)
+      let executablePath;
+      try {
+        executablePath = execSync('which chromium').toString().trim();
+        console.log(`📍 Found Chromium at: ${executablePath}`);
+      } catch (e) {
+        console.log('⚠️ Chromium not found in PATH, using bundled');
+        executablePath = undefined;
+      }
+      
       browser = await puppeteer.launch({
         headless: 'new',
+        executablePath: executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -20,9 +32,10 @@ const PuppeteerService = {
           '--no-zygote',
           '--single-process',
           '--disable-gpu',
-          '--disable-software-rasterizer'
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+          '--disable-software-rasterizer',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process'
+        ]
       });
 
       console.log('✅ Browser launched');
@@ -61,6 +74,7 @@ const PuppeteerService = {
         }
       }
       console.error('❌ Puppeteer error:', error.message);
+      console.error('Stack:', error.stack);
       throw error;
     }
   }
