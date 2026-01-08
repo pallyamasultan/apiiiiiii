@@ -7,7 +7,10 @@ const PuppeteerService = {
   fetchWithBrowser: async (url) => {
     let browser;
     try {
-      browser = await puppeteer.launch({
+      // Detect if running in Railway/production
+      const isProduction = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+      
+      const launchOptions = {
         headless: true,
         args: [
           '--no-sandbox',
@@ -15,22 +18,26 @@ const PuppeteerService = {
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
+          '--disable-software-rasterizer',
           '--window-size=1920x1080',
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process'
-        ],
-        timeout: 60000 // 60 detik untuk launch
-      });
+          '--single-process', // Important for Railway
+          '--no-zygote' // Important for Railway
+        ]
+      };
+
+      // Add executablePath for production if needed
+      if (isProduction) {
+        // Railway biasanya punya chromium di system
+        launchOptions.executablePath = '/usr/bin/chromium-browser' || '/usr/bin/chromium';
+      }
+
+      browser = await puppeteer.launch(launchOptions);
 
       const page = await browser.newPage();
       
-      // Set user agent
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
-      // Set viewport
       await page.setViewport({ width: 1920, height: 1080 });
       
-      // Set extra headers
       await page.setExtraHTTPHeaders({
         'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -38,20 +45,13 @@ const PuppeteerService = {
 
       console.log(`🌐 Fetching with Puppeteer: ${url}`);
       
-      // Navigate dengan timeout lebih lama dan strategi berbeda
       await page.goto(url, {
-        waitUntil: 'domcontentloaded', // Ganti dari networkidle2 ke domcontentloaded (lebih cepat)
-        timeout: 60000 // 60 detik
+        waitUntil: 'domcontentloaded',
+        timeout: 30000
       });
 
-      // Tunggu selector penting muncul
-      try {
-        await page.waitForSelector('.jdlrx h1', { timeout: 10000 });
-      } catch (e) {
-        console.log('⚠️ Title selector not found, but continuing...');
-      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Get HTML content
       const html = await page.content();
       
       await browser.close();
@@ -64,13 +64,7 @@ const PuppeteerService = {
       };
 
     } catch (error) {
-      if (browser) {
-        try {
-          await browser.close();
-        } catch (e) {
-          console.error('Error closing browser:', e.message);
-        }
-      }
+      if (browser) await browser.close();
       console.error('❌ Puppeteer error:', error.message);
       throw error;
     }
