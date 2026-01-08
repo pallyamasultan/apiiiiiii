@@ -220,81 +220,97 @@ const Services = {
         }
     },
     
-    getAnimeDetail: async (req, res) => {
-        const endpoint = req.params.endpoint
-        let url = `${baseUrl}/anime/${endpoint}/`
+   getAnimeDetail: async (req, res) => {
+    const endpoint = req.params.endpoint
+    let url = `${baseUrl}/anime/${endpoint}/`
 
-        try {
-            const response = await services.fetchService(url, res)
-            
-            if (!response || !response.data) {
-                return;
-            }
-            
-            if (response.status === 200) {
-                const $ = cheerio.load(response.data)
-                const infoElement = $(".fotoanime")
-                const episodeElement = $(".episodelist")
-                let anime_detail = {}
-                let episode_list = []
-                let thumb, sinopsis = [], detail = [], episode_title, episode_endpoint, episode_date, title
-
-                infoElement.each((index, el) => {
-                    thumb = $(el).find("img").attr("src")
-                    $(el).find(".sinopc > p").each((index, el) => {
-                        sinopsis.push($(el).text())
-                    })
-                    $(el).find(".infozingle > p").each((index, el) => {
-                        detail.push($(el).text())
-                    })
-
-                    anime_detail.thumb = thumb
-                    anime_detail.sinopsis = sinopsis
-                    anime_detail.detail = detail
-                })
-
-                title = $(".jdlrx > h1").text()
-                anime_detail.title = title
-
-                episodeElement.find("li").each((index, el) => {
-                    episode_title = $(el).find("span > a").text()
-                    episode_endpoint = $(el).find("span > a").attr("href").replace(`${baseUrl}/episode/`, "").replace(`${baseUrl}/batch/`, "").replace(`${baseUrl}/lengkap/`, "").replace("/", "")
-                    episode_date = $(el).find(".zeebr").text()
-
-                    episode_list.push({
-                        episode_title,
-                        episode_endpoint,
-                        episode_date
-                    })
-                })
-
-                return res.status(200).json({
-                    status: true,
-                    message: "success",
-                    anime_detail,
-                    episode_list,
-                    endpoint
-                })
-            }
-            
-            return res.status(500).json({
-                status: false,
-                message: "Failed to fetch data",
-                anime_detail: {},
-                episode_list: []
-            });
-            
-        } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                status: false,
-                message: error.message || "Internal server error",
-                anime_detail: {},
-                episode_list: []
-            });
+    try {
+        const response = await services.fetchService(url, res)
+        
+        if (!response || !response.data) {
+            return;
         }
-    },
-    
+        
+        console.log('📦 Response data length:', response.data.length);
+        
+        if (response.status === 200) {
+            const $ = cheerio.load(response.data)
+            
+            // Debug selectors
+            const titleElement = $('.jdlrx > h1');
+            const episodeElements = $('.episodelist li');
+            const thumbElement = $('.fotoanime img');
+            
+            console.log('🔍 Debug selectors:');
+            console.log('  - Title element found:', titleElement.length);
+            console.log('  - Episode elements found:', episodeElements.length);
+            console.log('  - Thumb element found:', thumbElement.length);
+            
+            const infoElement = $(".fotoanime")
+            const episodeElement = $(".episodelist")
+            let anime_detail = {}
+            let episode_list = []
+            let thumb, sinopsis = [], detail = [], episode_title, episode_endpoint, episode_date, title
+
+            infoElement.each((index, el) => {
+                thumb = $(el).find("img").attr("src")
+                $(el).find(".sinopc > p").each((index, el) => {
+                    sinopsis.push($(el).text())
+                })
+                $(el).find(".infozingle > p").each((index, el) => {
+                    detail.push($(el).text())
+                })
+
+                anime_detail.thumb = thumb
+                anime_detail.sinopsis = sinopsis
+                anime_detail.detail = detail
+            })
+
+            title = $(".jdlrx > h1").text().trim()
+            anime_detail.title = title
+            
+            console.log('📝 Parsed title:', title);
+
+            episodeElement.find("li").each((index, el) => {
+                episode_title = $(el).find("span > a").text()
+                episode_endpoint = $(el).find("span > a").attr("href").replace(`${baseUrl}/episode/`, "").replace(`${baseUrl}/batch/`, "").replace(`${baseUrl}/lengkap/`, "").replace("/", "")
+                episode_date = $(el).find(".zeebr").text()
+
+                episode_list.push({
+                    episode_title,
+                    episode_endpoint,
+                    episode_date
+                })
+            })
+            
+            console.log('📝 Parsed episodes:', episode_list.length);
+
+            return res.status(200).json({
+                status: true,
+                message: "success",
+                anime_detail,
+                episode_list,
+                endpoint
+            })
+        }
+        
+        return res.status(500).json({
+            status: false,
+            message: "Failed to fetch data",
+            anime_detail: {},
+            episode_list: []
+        });
+        
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            status: false,
+            message: error.message || "Internal server error",
+            anime_detail: {},
+            episode_list: []
+        });
+    }
+},
     getEmbedByContent: async(req, res) => {
         try {
             let nonce = await episodeHelper.getNonce();
