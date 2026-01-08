@@ -1,3 +1,5 @@
+const chromium = require('chrome-aws-lambda');
+const puppeteerCore = require('puppeteer-core');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
@@ -7,32 +9,35 @@ const PuppeteerService = {
   fetchWithBrowser: async (url) => {
     let browser;
     try {
-      // Detect if running in Railway/production
-      const isProduction = process.env.RAILWAY_ENVIRONMENT !== undefined;
+      // Detect environment
+      const isProduction = process.env.RAILWAY_ENVIRONMENT !== undefined || process.env.NODE_ENV === 'production';
       
-      const launchOptions = {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--window-size=1920x1080',
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--disable-blink-features=AutomationControlled'
-        ],
-        timeout: 60000
-      };
-
-      // Untuk Railway, set executable path ke Chromium yang diinstall via nixpacks
       if (isProduction) {
-        launchOptions.executablePath = '/nix/store/*-chromium-*/bin/chromium';
-        console.log('🚀 Running in Railway environment');
+        console.log('🚀 Running in PRODUCTION - using chrome-aws-lambda');
+        
+        // Production: use chrome-aws-lambda
+        browser = await puppeteerCore.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath,
+          headless: chromium.headless,
+          ignoreHTTPSErrors: true,
+        });
+      } else {
+        console.log('🚀 Running in DEVELOPMENT - using puppeteer-extra');
+        
+        // Development: use puppeteer-extra
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--window-size=1920x1080'
+          ]
+        });
       }
-
-      browser = await puppeteer.launch(launchOptions);
 
       const page = await browser.newPage();
       
@@ -44,7 +49,7 @@ const PuppeteerService = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       });
 
-      console.log(`🌐 Fetching with Puppeteer: ${url}`);
+      console.log(`🌐 Fetching: ${url}`);
       
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
@@ -54,11 +59,10 @@ const PuppeteerService = {
       try {
         await page.waitForSelector('.jdlrx h1', { timeout: 10000 });
       } catch (e) {
-        console.log('⚠️ Title selector not found, but continuing...');
+        console.log('⚠️ Title selector not found, continuing...');
       }
 
       const html = await page.content();
-      
       await browser.close();
       
       console.log('✅ Success fetching with Puppeteer');
