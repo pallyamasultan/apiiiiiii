@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "node node_modules/puppeteer/install.js || echo 'Puppeteer install skipped'"
   },
   "keywords": [
     "nodejs"
@@ -16,15 +17,16 @@
     "@vercel/analytics": "^0.1.11",
     "axios": "^0.27.2",
     "cheerio": "^1.0.0-rc.11",
-    "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "node-fetch": "^2.7.0",
     "nodemon": "^2.0.20",
-    "puppeteer": "^24.34.0",
-    "puppeteer-core": "^10.4.0",
+    "puppeteer": "^21.6.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "qs": "^6.11.0"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
