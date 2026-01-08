@@ -8,7 +8,7 @@ const PuppeteerService = {
     let browser;
     try {
       // Detect if running in Railway/production
-      const isProduction = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+      const isProduction = process.env.RAILWAY_ENVIRONMENT !== undefined;
       
       const launchOptions = {
         headless: true,
@@ -18,17 +18,18 @@ const PuppeteerService = {
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          '--disable-software-rasterizer',
           '--window-size=1920x1080',
-          '--single-process', // Important for Railway
-          '--no-zygote' // Important for Railway
-        ]
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-blink-features=AutomationControlled'
+        ],
+        timeout: 60000
       };
 
-      // Add executablePath for production if needed
+      // Untuk Railway, set executable path ke Chromium yang diinstall via nixpacks
       if (isProduction) {
-        // Railway biasanya punya chromium di system
-        launchOptions.executablePath = '/usr/bin/chromium-browser' || '/usr/bin/chromium';
+        launchOptions.executablePath = '/nix/store/*-chromium-*/bin/chromium';
+        console.log('🚀 Running in Railway environment');
       }
 
       browser = await puppeteer.launch(launchOptions);
@@ -47,10 +48,14 @@ const PuppeteerService = {
       
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout: 30000
+        timeout: 60000
       });
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      try {
+        await page.waitForSelector('.jdlrx h1', { timeout: 10000 });
+      } catch (e) {
+        console.log('⚠️ Title selector not found, but continuing...');
+      }
 
       const html = await page.content();
       
@@ -64,7 +69,13 @@ const PuppeteerService = {
       };
 
     } catch (error) {
-      if (browser) await browser.close();
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (e) {
+          console.error('Error closing browser:', e.message);
+        }
+      }
       console.error('❌ Puppeteer error:', error.message);
       throw error;
     }
