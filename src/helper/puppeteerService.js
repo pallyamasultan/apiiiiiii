@@ -9,90 +9,79 @@ const PuppeteerService = {
     let browser;
     try {
       console.log('🚀 Launching Puppeteer...');
-      
-      // Detect Chromium path di Railway (Nix)
+
       let executablePath;
       try {
         executablePath = execSync('which chromium').toString().trim();
         console.log(`📍 Found Chromium at: ${executablePath}`);
-      } catch (e) {
-        console.log('⚠️ Chromium not found in PATH, using bundled');
+      } catch {
         executablePath = undefined;
+        console.log('⚠️ Using bundled Chromium');
       }
-      
+
       browser = await puppeteer.launch({
         headless: 'new',
-        executablePath: executablePath,
+        executablePath,
+        protocolTimeout: 120000, // ⬅️ FIX UTAMA
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
           '--no-first-run',
           '--no-zygote',
-          '--single-process',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process'
+          '--single-process'
         ]
       });
 
-      console.log('✅ Browser launched');
-
       const page = await browser.newPage();
-      
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      await page.setViewport({ width: 1920, height: 1080 });
 
-      console.log(`🌐 Navigating to: ${url}`);
-      
-      // Navigate dengan networkidle0 untuk memastikan semua resource loaded
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+
+      await page.setViewport({ width: 1366, height: 768 });
+
+      // ⛔ BLOCK RESOURCE BERAT
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        const type = req.resourceType();
+        if (['image', 'media', 'font'].includes(type)) {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+
+      console.log(`🌐 Navigating: ${url}`);
+
       await page.goto(url, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded', // ⬅️ FIX
         timeout: 60000
       });
 
-      console.log('⏳ Waiting for content to render...');
-      
-      // Tunggu selector penting muncul
-      try {
-        await page.waitForSelector('.jdlrx h1', { timeout: 10000 });
-        console.log('✅ Title selector found');
-      } catch (e) {
-        console.log('⚠️ Title selector not found, continuing...');
-      }
-
-      // Extra wait untuk memastikan JS selesai execute
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Tunggu elemen utama ATAU timeout ringan
+      await Promise.race([
+        page.waitForSelector('.jdlrx h1', { timeout: 10000 }),
+        page.waitForTimeout(8000)
+      ]);
 
       const html = await page.content();
-      
-      // Debug: cek apakah HTML contain keyword penting
-      const hasChainsaw = html.includes('Chainsaw');
-      const hasEpisode = html.includes('Episode');
-      console.log(`🔍 HTML Check: Chainsaw=${hasChainsaw}, Episode=${hasEpisode}, Length=${html.length}`);
-      
+
+      console.log('✅ HTML fetched:', html.length);
+
       await browser.close();
-      
-      console.log(`✅ Success - HTML length: ${html.length}`);
-      
+
       return {
         status: 200,
         data: html
       };
 
-    } catch (error) {
-      if (browser) {
-        try {
-          await browser.close();
-        } catch (e) {
-          console.error('Error closing browser:', e.message);
-        }
-      }
-      console.error('❌ Puppeteer error:', error.message);
-      console.error('Stack:', error.stack);
-      throw error;
+    } catch (err) {
+      if (browser) await browser.close().catch(() => {});
+      console.error('❌ Puppeteer Error:', err.message);
+      throw err;
     }
   }
 };
